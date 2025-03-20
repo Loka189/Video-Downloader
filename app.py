@@ -3,6 +3,9 @@ import os
 import yt_dlp
 from urllib.parse import quote
 
+
+print("FILES IN DIR:", os.listdir())  # <- this will show in Railway logs
+
 app = Flask(__name__)
 
 # Home Page
@@ -22,8 +25,9 @@ def download():
 
     # yt-dlp options
     ydl_opts = {
-        'outtmpl': download_path
-    }
+    'outtmpl': download_path,
+    'cookiefile': 'www.youtube.com_cookies.txt'
+}
 
     # Download video using yt-dlp
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
