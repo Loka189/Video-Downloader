@@ -26,7 +26,8 @@ def download():
     # yt-dlp options
     ydl_opts = {
     'outtmpl': download_path,
-    'cookiefile': 'www.youtube.com_cookies.txt'
+   'cookiefile': './www.youtube.com_cookies.txt',
+    'verbose': True
 }
 
     # Download video using yt-dlp
