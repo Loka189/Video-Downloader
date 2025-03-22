@@ -23,10 +23,18 @@ def download():
 
     download_path = 'downloads/%(title)s.%(ext)s'
 
+    # Save the cookie text to a file at runtime
+    with open('youtube_cookies.txt', 'w') as f:
+        f.write(os.environ.get("YOUTUBE_COOKIES", ""))
+
+
+
     # yt-dlp options
     ydl_opts = {
     'outtmpl': download_path,
    'cookiefile': './www.youtube.com_cookies.txt',
+   'cookiefile': './youtube_cookies.txt',
+
     'verbose': True
 }
 
