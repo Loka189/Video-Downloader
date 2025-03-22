@@ -1,16 +1,7 @@
-from flask import Flask, render_template, request, send_from_directory
-import os
-import yt_dlp
-from urllib.parse import quote
+from flask import Flask, render_template, request
+import requests
 
 app = Flask(__name__)
-
-# Save the cookie from ENV to a file
-COOKIE_FILE_PATH = 'youtube_cookies.txt'
-cookie_content = os.environ.get("YOUTUBE_COOKIES", "")
-if cookie_content:
-    with open(COOKIE_FILE_PATH, 'w') as f:
-        f.write(cookie_content)
 
 @app.route('/')
 def index():
@@ -19,40 +10,34 @@ def index():
 @app.route('/download', methods=['POST'])
 def download():
     url = request.form['url']
+    video_id = extract_video_id(url)
 
-    if not os.path.exists('downloads'):
-        os.makedirs('downloads')
+    piped_api = f"https://pipedapi.kavin.rocks/streams/{video_id}"
+    res = requests.get(piped_api)
 
-    download_path = 'downloads/%(title)s.%(ext)s'
+    if res.status_code != 200:
+        return "❌ Failed to fetch video from Piped API"
 
-    ydl_opts = {
-        'outtmpl': download_path,
-        'cookiefile': COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None,
-        'verbose': True,
-    }
+    data = res.json()
+    title = data.get("title", "video")
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=True)
-            video_filename = ydl.prepare_filename(info_dict)
-    except Exception as e:
-        return f"<h3>❌ Download Failed</h3><pre>{str(e)}</pre>"
+    # Get best quality video stream
+    video_stream = data['videoStreams'][0]
+    video_url = video_stream['url']
+    quality = video_stream['quality']
+    format_ = video_stream['format']
 
-    safe_filename = quote(os.path.basename(video_filename))
     return f"""
-    <h2>✅ Download Completed</h2>
-    <a href="/get_video/{safe_filename}">➡ Click here to download your video</a><br><br>
-    <small>File saved as: {video_filename}</small>
+    <h2>✅ Video Found: {title}</h2>
+    <p>Best Quality: {quality} ({format_})</p>
+    <a href="{video_url}" download="{title}.{format_}">➡ Click here to download</a><br>
     """
 
-@app.route('/get_video/<path:filename>')
-def get_video(filename):
-    try:
-        return send_from_directory('downloads', filename, as_attachment=True)
-    except FileNotFoundError:
-        return "❌ File not found!", 404
-
+def extract_video_id(url):
+    # Basic parser for YouTube video ID
+    import re
+    match = re.search(r"(?:v=|\/)([0-9A-Za-z_-]{11})", url)
+    return match.group(1) if match else None
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=5000)
