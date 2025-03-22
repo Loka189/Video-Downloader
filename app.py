@@ -33,7 +33,6 @@ def download():
     ydl_opts = {
     'outtmpl': download_path,
    'cookiefile': './www.youtube.com_cookies.txt',
-   'cookiefile': './youtube_cookies.txt',
 
     'verbose': True
 }
