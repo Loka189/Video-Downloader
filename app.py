@@ -3,17 +3,19 @@ import os
 import yt_dlp
 from urllib.parse import quote
 
-
-print("FILES IN DIR:", os.listdir())  # <- this will show in Railway logs
-
 app = Flask(__name__)
 
-# Home Page
+# Save the cookie from ENV to a file
+COOKIE_FILE_PATH = 'youtube_cookies.txt'
+cookie_content = os.environ.get("YOUTUBE_COOKIES", "")
+if cookie_content:
+    with open(COOKIE_FILE_PATH, 'w') as f:
+        f.write(cookie_content)
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Download Handler
 @app.route('/download', methods=['POST'])
 def download():
     url = request.form['url']
@@ -23,35 +25,26 @@ def download():
 
     download_path = 'downloads/%(title)s.%(ext)s'
 
-    # Save the cookie text to a file at runtime
-    with open('youtube_cookies.txt', 'w') as f:
-        f.write(os.environ.get("YOUTUBE_COOKIES", ""))
-
-
-
-    # yt-dlp options
     ydl_opts = {
-    'outtmpl': download_path,
-   'cookiefile': './www.youtube.com_cookies.txt',
+        'outtmpl': download_path,
+        'cookiefile': COOKIE_FILE_PATH if os.path.exists(COOKIE_FILE_PATH) else None,
+        'verbose': True,
+    }
 
-    'verbose': True
-}
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=True)
+            video_filename = ydl.prepare_filename(info_dict)
+    except Exception as e:
+        return f"<h3>❌ Download Failed</h3><pre>{str(e)}</pre>"
 
-    # Download video using yt-dlp
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(url, download=True)
-        video_filename = ydl.prepare_filename(info_dict)
-
-    # Encode filename for URL
     safe_filename = quote(os.path.basename(video_filename))
-
     return f"""
     <h2>✅ Download Completed</h2>
     <a href="/get_video/{safe_filename}">➡ Click here to download your video</a><br><br>
     <small>File saved as: {video_filename}</small>
     """
 
-# Serve Video File
 @app.route('/get_video/<path:filename>')
 def get_video(filename):
     try:
@@ -59,6 +52,6 @@ def get_video(filename):
     except FileNotFoundError:
         return "❌ File not found!", 404
 
-# Run on Railway (or locally)
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
